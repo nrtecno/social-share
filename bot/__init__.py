@@ -21,10 +21,10 @@ bot = telebot.TeleBot(BOT_TOKEN)
 
 # ========== CHECK IF USER JOINED CHANNEL ==========
 def check_user_joined(user_id):
-    """Check if user has joined @nrtecno2"""
+    """Check if user has joined @nr_hackz"""
     try:
         # Get chat member status
-        chat_member = bot.get_chat_member("@nrtecno2", user_id)
+        chat_member = bot.get_chat_member("@nr_hackz", user_id)
         status = chat_member.status
         # If status is 'left' or 'kicked', user hasn't joined
         if status in ['left', 'kicked']:
@@ -57,7 +57,7 @@ def get_bottom_buttons():
 def get_join_buttons():
     markup = InlineKeyboardMarkup(row_width=1)
     markup.add(
-        InlineKeyboardButton("📢 Join @nrtecno2", url="https://t.me/nrtecno2"),
+        InlineKeyboardButton("📢 Join @nr_hackz", url="https://t.me/nr_hackz"),
         InlineKeyboardButton("✅ I have joined", callback_data="verify_join")
     )
     return markup
@@ -78,8 +78,8 @@ def start(message):
         bot.send_message(
             user_id,
             "🔐 *Access Restricted*\n\n"
-            "You must join @nrtecno2 to use this bot.\n\n"
-            "👉 [Join @nrtecno2](https://t.me/nrtecno2)\n\n"
+            "You must join @nr_hackz to use this bot.\n\n"
+            "👉 [Join @nrtecno2](https://t.me/nr_hackz)\n\n"
             "After joining, click the button below to verify.",
             reply_markup=get_join_buttons(),
             parse_mode="Markdown"
@@ -103,7 +103,7 @@ def verify_join(call):
     else:
         bot.answer_callback_query(
             call.id, 
-            "❌ You haven't joined @nrtecno2 yet!\nPlease join first using the button above.",
+            "❌ You haven't joined @nr_hackz yet!\nPlease join first using the button above.",
             show_alert=True
         )
 
