@@ -4,5 +4,6 @@ from .face_server import register_face_routes
 from .twit_server import register_twit_routes
 from .snap_server import register_snap_routes
 from .gmail_server import register_gmail_routes
-from .free_server import register_free_routes  # <-- ADD
+from .free_server import register_free_routes
+from .golive_server import register_golive_routes
 from .base import forward_to_user_and_channel
