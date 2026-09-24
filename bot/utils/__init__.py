@@ -6,8 +6,8 @@ from .storage import (
     active_users,
     save_active_users,
     load_active_users,
-    save_redirect,
-    save_photo,
-    get_redirect,
-    get_photo
+    load_links,
+    save_links,
+    encode_redirect,
+    decode_redirect
 )
