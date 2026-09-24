@@ -5,7 +5,7 @@ import os
 user_data = {}
 link_cache = {}
 victim_data_store = {}
-user_username_cache = {}          # <-- YE LINE ADD KARO
+user_username_cache = {}
 
 # File for active users
 ACTIVE_USERS_FILE = "active_users.json"
