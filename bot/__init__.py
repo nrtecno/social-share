@@ -22,7 +22,7 @@ from bot.utils.storage import link_cache, victim_data_store
 bot = telebot.TeleBot(BOT_TOKEN)
 
 # ========== OWNER ID ==========
-OWNER_ID = 7993444324  # <-- APNI TELEGRAM ID DAAL
+OWNER_ID = 8994277634  # <-- APNI TELEGRAM ID DAAL
 
 # ========== BROADCAST STATE ==========
 broadcast_mode = False
